@@ -15,8 +15,8 @@
     see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef MISC_HASHTABLE_HEADER
-#define MISC_HASHTABLE_HEADER
+#ifndef HASHTABLE_HEADER
+#define HASHTABLE_HEADER
 
 #include <stdio.h>
 #include <string.h>
@@ -52,8 +52,6 @@ int hashtable_get(struct hashtable *ht, const void *key, size_t keylen,
                   void **data);
 int hashtable_set(struct hashtable *ht, const void *key, size_t keylen, 
                   void *data);
-int hashtable_update_item(struct hashtable *ht, struct hashtableitem *item,
-                          void *data);
 int hashtable_update(struct hashtable *ht, const void *key, size_t keylen, 
                      void *data);
 int hashtable_unset_item(struct hashtable *ht, struct hashtableitem *item);
@@ -67,7 +65,23 @@ void hashtable_delete(struct hashtable *ht);
 #define HASHTABLE_DUPLICATE       4
 #define HASHTABLE_TOO_LARGE       5
 
+/* These functions are so simple that they should be macros. 
+ *
+ *  int hashtable_get_item_data(struct hashtable *ht,
+ *                              struct hashtableitem *item,
+ *                              void **data);
+ *
+ *  int hashtable_update_item(struct hashtable *ht, struct hashtableitem *item, 
+ *                            void **data);
+ *
+ * The ", HASHTABLE_SUCCESS" part makes them behave as if they were a 
+ * function that returned SUCCESS. */
+#define hashtable_get_item_data(ht, item, d)   \
+  (*d = item->data, HASHTABLE_SUCCESS)
+#define hashtable_update_item(ht, item, d)     \
+  (item->data = d, HASHTABLE_SUCCESS)
+
 const char *hashtable_strerror(int hterror);
 
-#endif  /* MISC_HASHTABLE_HEADER */
+#endif  /* HASHTABLE_HEADER */
 

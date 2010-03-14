@@ -99,7 +99,7 @@ static inline int hashtable_get_target(struct hashtable *ht,
         }
         else  /* HASHTABLE_GET_DATA */
         {
-          *target = j->data;
+          hashtable_get_item_data(ht, j, target);
         }
       }
 
@@ -157,13 +157,6 @@ int hashtable_set(struct hashtable *ht, const void *key, size_t keylen,
 
   (ht->table_itemcount)++;
 
-  return HASHTABLE_SUCCESS;
-}
-
-int hashtable_update_item(struct hashtable *ht, struct hashtableitem *item,
-                          void *data)
-{
-  item->data = data;
   return HASHTABLE_SUCCESS;
 }
 

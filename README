@@ -17,8 +17,12 @@ GNU General Public License for more details.
 For a full copy of the GNU General Public License, 
 see <http://www.gnu.org/licenses/>.
 
+liblighashtable includes sections from lookup3.c, 
+by Bob Jenkins, May 2006, Public Domain.
+see http://burtleburtle.net/bob/c/lookup3.c for the original.
+
 ===============================================================================
-  INFO & AUTHOR
+  AUTHOR & PROJECT URL
 ===============================================================================
 
 liblighashtable was written by:
@@ -26,6 +30,144 @@ Daniel Richman <main@danielrichman.co.uk>
 
 and the source code project page currently is
 http://github.com/danielrichman/liblighashtable
+
+===============================================================================
+  USAGE / LIBRARY REFERENCE
+===============================================================================
+
+Creating a hashtable
+
+  int hashtable_new(struct hashtable *ht, int size_exponent);
+
+    Create a new hashtable, allocating memory for the table itself.
+    By default, the hash function used is Bob Jenkins' lookup3, however, if 
+    you want, you can specify your own using hashtable_new_custom:
+
+    A hashtable in this library is always a size that is a power of 2.
+    size_exponent specifies the starting size of the table (its size will
+    be expanded by doubling if you add enough items to it; hashtable_set,
+    despite being able to create a linked list of items in one hashtable
+    'slot' to compensate for collisions, will expand the table once you 
+    have added the number of items that the table was originally intended
+    to contain to the table).
+
+    For example:
+      struct hashtable ht;
+      hashtable_new(&ht, 3);
+
+      creates a new table of size 8, meaning it has 8 'slots' (an item's 
+      slot is chosen by masking (read bitwise AND/&) the 32 bit hash for  
+      each item and extracting the last 3 bits, for a table size of 8).
+
+      After having inserted 8 items into the table, hashtable_set will 
+      decide to double the table size. Some of those 8 items may have hash
+      collisions, and there may be 2 items in one 'slot'. The doubling of
+      the hashtable size is intended to reduce collisions when the number
+      of items reaches such a level compared to the number of slots.
+
+      The resizing of the table will move any collisions, where appropriate,
+      into their new home (if the new table mask now taking the last 4 bits
+      puts them in a different slot).
+
+  int hashtable_new_custom(struct hashtable *ht, int size_exponent, 
+                           hash_function f);
+  typedef uint32_t (*hash_function)(const void *key, size_t length);
+
+Setting keys in the hashtable.
+
+  int hashtable_set(struct hashtable *ht, const void *key, size_t keylen, 
+                    void *data);
+
+    hashtable_set associates whatever is pointed to by *data to the key 
+    provided. data can point to anything you wish; a struct, a char-array - 
+    it's a void * for the reason that any lump of stuff can be associated 
+    with it.
+
+    No two keys may be identical, see the return value HASHTABLE_DUPLICATE
+    below
+
+Retrieving keys form the hashtable
+
+  int hashtable_get(struct hashtable *ht, const void *key, size_t keylen, 
+                    void **data);
+
+    Searches for an item in the hashtable under the key specified. If found,
+    it will assign item's "data" varialbe (see hashtable_set) to *data.
+
+  int hashtable_get_item(struct hashtable *ht, const void *key, size_t keylen,
+                         struct hashtableitem **item);
+
+    Similar to hashtable_get, however, instead of providing you with the
+    contents of the items 'data' variable, it gives you a pointer to the item
+    itself. This is useful (more efficient) if you wish to perform multiple 
+    operations on one key, for example, 'getting' it, and then 'updating' it, 
+    without performing the search through the hashtable twice.
+
+  int hashtable_get_item_data(struct hashtable *ht, 
+                              struct hashtableitem *item, 
+                              void **data);
+
+Updating an items *data
+
+  int hashtable_update_item(struct hashtable *ht, struct hashtableitem *item, 
+                            void **data);
+  int hashtable_update(struct hashtable *ht, const void *key, size_t keylen, 
+                       void *data);
+
+    hashtable_update updates the item associated with key's data variable to
+    'data'. hashtable_update_item takes a pointer given to you by 
+    hashtable_get_item and performs the same operation as hashtable_update,
+    In order to be compatible with potential changes to the internals behind
+    hashtable_update_item, you should treat it as if it were a function.
+
+Removing an item from the table
+
+  int hashtable_unset_item(struct hashtable *ht, struct hashtableitem *item);
+  int hashtable_unset(struct hashtable *ht, const void *key, size_t keylen);
+
+    This will free the memory allocated for the item, but will not touch or 
+    free the target of the item's data pointer.
+
+Destroying the hashtable entirely
+
+  void hashtable_delete(struct hashtable *ht);
+
+    This also 'unsets' any items still in the table
+    (see hashtable_unset).
+
+Return values
+
+  All functions, except for hashtable_delete, return one of these values:
+
+    #define HASHTABLE_SUCCESS         0
+    #define HASHTABLE_OUT_OF_MEMORY   1
+    #define HASHTABLE_KEY_NOT_FOUND   2
+    #define HASHTABLE_INVALID_ARG     3
+    #define HASHTABLE_DUPLICATE       4
+    #define HASHTABLE_TOO_LARGE       5
+
+  The following function can be used to look up a string associated with this
+  number, in a similar way to strerror for stdio.h
+
+    const char *hashtable_strerror(int hterror);
+
+  NB:
+
+  If a hashtable_new returns HASHTABLE_OUT_OF_MEMORY, no memory will have been
+  allocated since a call to malloc failed. However, if while setting a new key
+  in the table it is decided that the table should be increased in size, and 
+  this fails, or allocating memory for the item itself fails, then 
+  HASHTABLE_OUT_OF_MEMORY will be returned BUT THE TABLE IS STILL ALLOCATED AND
+  READABLE! If you wish to bail out, you will need to call hashtable_delete, 
+  which will free everything associated with the table.
+
+  HASHTABLE_TOO_LARGE will most likely never happen to you, unless you have a
+  truly colossal amount of ram, and a truly colossal amount of stuff you want
+  to store in a hashtable. It occurs when the number of items to be stored in
+  the table reaches 2^32.
+
+  HASHTABLE_INVALID_ARG refers to the size_exponent argument of 
+  hashtable_new
 
 ===============================================================================
   INSTALLATION

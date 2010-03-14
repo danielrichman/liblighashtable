@@ -15,8 +15,8 @@
     see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef MISC_FAILFUNC_HEADER
-#define MISC_FAILFUNC_HEADER
+#ifndef FAILFUNC_HEADER
+#define FAILFUNC_HEADER
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -48,5 +48,5 @@ void hashtable_unset_f(struct hashtable *ht, char *key, size_t keylen);
 
 #define hashtable_delete_f hashtable_delete
 
-#endif  /* MISC_FAILFUNC_HEADER */
+#endif  /* FAILFUNC_HEADER */
 

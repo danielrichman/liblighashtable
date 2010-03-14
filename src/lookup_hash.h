@@ -15,13 +15,13 @@
     see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef MISC_LOOKUP_HASH_HEADER
-#define MISC_LOOKUP_HASH_HEADER
+#ifndef LOOKUP_HASH_HEADER
+#define LOOKUP_HASH_HEADER
 
 #include <stdio.h>
 #include <stdint.h>
 
 uint32_t lookup_hash(const void *key, size_t length);
 
-#endif  /* MISC_LOOKUP_HASH_HEADER */
+#endif  /* LOOKUP_HASH_HEADER */
 
