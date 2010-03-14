@@ -37,7 +37,7 @@ endif
 
 src_cfiles      := $(wildcard $(SRC_DIR)/*.c)
 test_cfiles     := $(wildcard $(TEST_DIR)/*.c)
-src_headers     := $(wildcard $(SRC_DIR)/*.h)
+src_headers     := $(wildcard $(SRC_DIR)/*.h) config.h
 test_headers    := $(wildcard $(TEST_DIR)/*.h)
 src_objects     := $(patsubst %.c,%.o,$(src_cfiles))
 src_pic_objects := $(patsubst %.c,%.pic.o,$(src_cfiles))
@@ -49,19 +49,26 @@ test : $(TEST_BINARY)
 	$(TEST_BINARY)
 
 clean : clean-objects
-	rm -f $(TARGET_LIBRARY).so $(TARGET_LIBRARY).a $(TEST_BINARY)
+	rm -f $(TARGET_LIBRARY).so $(TARGET_LIBRARY).a $(TEST_BINARY) 
+	rm -f config.h configure
 
 clean-objects: 
 	rm -f $(src_objects) $(src_pic_objects) $(test_objects)
 
+config.h : ./configure
+	./configure
+
+configure : configure.c
+	$(CC) -o $@ $<
+
 $(SRC_DIR)/%.o : src/%.c $(src_headers)
-	$(CC) $(CFLAGS) -I$(SRC_DIR) -c -o $@ $<
+	$(CC) $(CFLAGS) -I. -I$(SRC_DIR) -c -o $@ $<
 
 $(SRC_DIR)/%.pic.o : src/%.c $(src_headers)
-	$(CC) $(CFLAGS) -I$(SRC_DIR) -fPIC -c -o $@ $<
+	$(CC) $(CFLAGS) -I. -I$(SRC_DIR) -fPIC -c -o $@ $<
 
 $(TEST_DIR)/%.o : test/%.c $(test_headers) $(src_headers)
-	$(CC) $(CFLAGS) -I$(TEST_DIR) -I$(SRC_DIR) -c -o $@ $<
+	$(CC) $(CFLAGS) -I. -I$(TEST_DIR) -I$(SRC_DIR) -c -o $@ $<
 
 $(TEST_BINARY) : $(test_objects) $(src_objects)
 	$(CC) $(CFLAGS) -o $@ $(test_objects) $(src_objects)

@@ -10,7 +10,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define ENDIAN_LITTLE  /* XXX */
+#include "config.h"
 
 #ifdef ENDIAN_LITTLE
   #define HASH_ENDIAN_LITTLE 1
