@@ -1,0 +1,65 @@
+===============================================================================
+  LEGAL
+===============================================================================
+
+liblighashtable is Copyright (C) 2008  Daniel Richman
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+For a full copy of the GNU General Public License, 
+see <http://www.gnu.org/licenses/>.
+
+===============================================================================
+  INFO & AUTHOR
+===============================================================================
+
+liblighashtable was written by:
+Daniel Richman <main@danielrichman.co.uk>
+
+and the source code project page currently is
+http://github.com/danielrichman/liblighashtable
+
+===============================================================================
+  INSTALLATION
+===============================================================================
+
+The Makefile will compile configure.c to detect endian-ness and then will 
+compile and create either a shared object, a static library or a test binary.
+
+$ make -B OPT=true liblighashtable.so
+$ make -B OPT=true liblighashtable.a
+$ make -B OPT=true ht_test
+
+Building the target 'test' will have make also run the test program.
+$ make -B OPT=true test
+
+Building 'all' creates both static & shared libraries, a test binary, and 
+runs it
+$ make -B OPT=true all
+
+If the test fails for whatever reason, it will exit with a non zero code and
+this will cause make to print an error.
+
+The following other options are availiable:
+
+Print a large amount of debugging information from the test program
+$ make -B DEBUG=true test
+
+Compile with -pg and a large number of test program repetitions
+$ make -B BENCHMARK=true OPT=true ht_test
+$ time ./ht_test
+$ gprof ht_test
+
+Note that compiling BENCHMARK=true without OPT=true will produce interestingly
+differnet results - the introduction of -O2 dramatically improves this 
+library's performance.
+
+===============================================================================
