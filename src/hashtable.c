@@ -20,7 +20,7 @@
 #include <stdint.h>
 #include <string.h>
 
-#include "failfunc.h"
+#include "hashtable.h"
 #include "lookup_hash.h"
 
 #define HASHTABLE_SIZE_EXPONENT_LIMIT  32

@@ -1,6 +1,3 @@
-#!/usr/bin/make -f
-# -*- makefile -*-
-
 #    Copyright (C) 2008  Daniel Richman
 #
 #    This program is free software: you can redistribute it and/or modify
@@ -16,9 +13,64 @@
 #    For a full copy of the GNU General Public License, 
 #    see <http://www.gnu.org/licenses/>.
 
-CFILE_SEARCH = src/*.c test/*.c
-HEADER_SEARCH = src/*.h test/*.h
-INCLUDE_DIRS = -Isrc -Itest
-TARGETBINARY = test/test
+TEST_BINARY    = ./ht_test
+TARGET_LIBRARY = liblighashtable
+SRC_DIR        = src
+TEST_DIR       = test
 
-include rules.mk
+CC = gcc
+AR = ar
+override CFLAGS += -Wall -pedantic --std=gnu99 -D_GNU_SOURCE 
+GPERF = gperf
+
+ifdef OPT
+  override CFLAGS += -O2 -DNDEBUG
+endif
+
+ifdef BENCHMARK
+  override CFLAGS += -pg -DBENCHMARK
+endif
+
+ifdef DEBUG
+  override CFLAGS += -g -DVERBOSE
+endif
+
+src_cfiles      := $(wildcard $(SRC_DIR)/*.c)
+test_cfiles     := $(wildcard $(TEST_DIR)/*.c)
+src_headers     := $(wildcard $(SRC_DIR)/*.h)
+test_headers    := $(wildcard $(TEST_DIR)/*.h)
+src_objects     := $(patsubst %.c,%.o,$(src_cfiles))
+src_pic_objects := $(patsubst %.c,%.pic.o,$(src_cfiles))
+test_objects    := $(patsubst %.c,%.o,$(test_cfiles))
+
+all : $(TARGET_LIBRARY).a $(TARGET_LIBRARY).so test
+
+test : $(TEST_BINARY)
+	$(TEST_BINARY)
+
+clean : clean-objects
+	rm -f $(TARGET_LIBRARY).so $(TARGET_LIBRARY).a $(TEST_BINARY)
+
+clean-objects: 
+	rm -f $(src_objects) $(src_pic_objects) $(test_objects)
+
+$(SRC_DIR)/%.o : src/%.c $(src_headers)
+	$(CC) $(CFLAGS) -I$(SRC_DIR) -c -o $@ $<
+
+$(SRC_DIR)/%.pic.o : src/%.c $(src_headers)
+	$(CC) $(CFLAGS) -I$(SRC_DIR) -fPIC -c -o $@ $<
+
+$(TEST_DIR)/%.o : test/%.c $(test_headers) $(src_headers)
+	$(CC) $(CFLAGS) -I$(TEST_DIR) -I$(SRC_DIR) -c -o $@ $<
+
+$(TEST_BINARY) : $(test_objects) $(src_objects)
+	$(CC) $(CFLAGS) -o $@ $(test_objects) $(src_objects)
+
+$(TARGET_LIBRARY).so : $(src_pic_objects)
+	$(CC) $(CFLAGS) -shared -o $@ $(src_pic_objects)
+
+$(TARGET_LIBRARY).a : $(src_objects)
+	$(AR) rcs $@ $(src_objects)
+
+.PHONY : all test clean clean-objects
+.DEFAULT_GOAL := all
