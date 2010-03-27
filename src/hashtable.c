@@ -23,41 +23,67 @@
 #include "hashtable.h"
 #include "lookup_hash.h"
 
-#define HASHTABLE_SIZE_EXPONENT_LIMIT  32
-#define HASHTABLE_POOL_MAX_SIZE        1024
-
 #define HASHTABLE_GET_ITEM 0
 #define HASHTABLE_GET_DATA 1
 
-static inline int hashtable_resize(struct hashtable *ht, int size_exponent);
+const struct hashtablesettings hashtable_defaults = 
+{
+  /* size_initial         */ 3,
+  /* size_maximum         */ 4,
+  /* size_extend          */ 1,
+  /* size_extend_trigger  */ 0,
+  /* hashfunction         */ lookup_hash
+};
+
+static inline int hashtable_verify_settings(const struct hashtablesettings *s);
+static inline int hashtable_resize(struct hashtable *ht, 
+                                   ht_size_p_t new_size_p);
 static inline void hashtable_insert(struct hashtable *ht, 
                                     struct hashtableitem *item);
 static inline int hashtable_get_target(struct hashtable *ht,  
                                        const void *key, size_t keylen, 
                                        void **target, const int target_type);
 
-int hashtable_new_custom(struct hashtable *ht, int size_exponent,
-                         hash_function f)
+int hashtable_new_custom(struct hashtable *ht, 
+                         const struct hashtablesettings *s)
 {
-  if (size_exponent < 1 || size_exponent >= HASHTABLE_SIZE_EXPONENT_LIMIT)
+  int r;
+
+  r = hashtable_verify_settings(s);
+  if (r != HASHTABLE_SUCCESS)
   {
-    return HASHTABLE_INVALID_ARG;
+    return r;
   }
 
   ht->table              = NULL;
+  ht->table_size_p       = 0;
   ht->table_size         = 0;
   ht->table_itemcount    = 0;
   ht->table_mask         = 0;
-  ht->table_hashfunction = f;
+  ht->table_settings     = *s;
 
   /* If this fails now it won't have allocated any memory 
    * (this is not true for its later use in hashtable_set) */
-  return hashtable_resize(ht, 1 << size_exponent);
+  return hashtable_resize(ht, ht->table_settings.size_initial);
 }
 
-int hashtable_new(struct hashtable *ht, int size_exponent)
+int hashtable_new(struct hashtable *ht)
 {
-  return hashtable_new_custom(ht, size_exponent, lookup_hash);
+  return hashtable_new_custom(ht, &hashtable_defaults);
+}
+
+int hashtable_verify_settings(const struct hashtablesettings *s)
+{
+  if (s->size_initial <= ht_size_lim_p || s->size_maximum <= ht_size_lim_p || 
+      s->size_extend <= ht_size_lim_p || 
+      s->size_extend_trigger <= ht_size_lim_p)
+  {
+    return HASHTABLE_SUCCESS;
+  }
+  else
+  {
+    return HASHTABLE_INVALID_ARG;
+  }
 }
 
 int hashtable_get_item(struct hashtable *ht, const void *key, size_t keylen, 
@@ -78,10 +104,10 @@ static inline int hashtable_get_target(struct hashtable *ht,
                                        const void *key, size_t keylen, 
                                        void **target, const int target_type)
 {
-  uint32_t hash;
+  ht_hash_t hash;
   struct hashtableitem *j;
 
-  hash = (ht->table_hashfunction)(key, keylen);
+  hash = (ht->table_settings.hashfunction)(key, keylen);
 
   j = (ht->table)[hash & ht->table_mask];
 
@@ -122,6 +148,7 @@ int hashtable_set(struct hashtable *ht, const void *key, size_t keylen,
                   void *data)
 {
   int i, k;
+  ht_size_p_t extend_trigger, extend;
   struct hashtableitem *new_item;
 
   k = hashtable_get(ht, key, keylen, NULL);
@@ -136,28 +163,44 @@ int hashtable_set(struct hashtable *ht, const void *key, size_t keylen,
     return k;
   }
 
-  if (ht->table_itemcount == ht->table_size)
-  {
-    i = hashtable_resize(ht, ht->table_size << 1);
+  extend         = ht->table_size_p + ht->table_settings.size_extend;
+  extend_trigger = ht->table_size_p + ht->table_settings.size_extend_trigger;
 
-    if (i != HASHTABLE_SUCCESS)
-    {
-      return i;
-    }
+  if (extend <= ht->table_settings.size_maximum && 
+      extend <= ht_size_lim_p && extend_trigger <= ht_size_lim_p && 
+      ht->table_itemcount == (1 << extend_trigger))
+  {
+    i = hashtable_resize(ht, extend);
+  }
+  else
+  {
+    i = HASHTABLE_SUCCESS;
   }
 
   new_item = malloc(sizeof(struct hashtableitem));
 
+  if (new_item == NULL)
+  {
+    return HASHTABLE_OUT_OF_MEMORY;
+  }
+
   new_item->key      = key;
   new_item->keylen   = keylen;
-  new_item->key_hash = (ht->table_hashfunction)(key, keylen);
+  new_item->key_hash = (ht->table_settings.hashfunction)(key, keylen);
   new_item->data     = data;
 
   hashtable_insert(ht, new_item);
 
   (ht->table_itemcount)++;
 
-  return HASHTABLE_SUCCESS;
+  if (i == HASHTABLE_OUT_OF_MEMORY)
+  {
+    return HASHTABLE_SUCCESS_YET_OUT_OF_MEMORY;
+  }
+  else
+  {
+    return HASHTABLE_SUCCESS;
+  }
 }
 
 int hashtable_update(struct hashtable *ht, const void *key, size_t keylen, 
@@ -178,7 +221,7 @@ int hashtable_update(struct hashtable *ht, const void *key, size_t keylen,
 
 int hashtable_unset_item(struct hashtable *ht, struct hashtableitem *item)
 {
-  uint32_t slot;
+  ht_size_t slot;
 
   if (item->prev == NULL)
   {
@@ -214,7 +257,7 @@ int hashtable_unset(struct hashtable *ht, const void *key, size_t keylen)
 
 void hashtable_delete(struct hashtable *ht)
 {
-  uint32_t slot;
+  ht_size_t slot;
   struct hashtableitem *i, *j;
 
   for (slot = 0; slot < ht->table_size; slot++)
@@ -235,25 +278,21 @@ void hashtable_delete(struct hashtable *ht)
     ht->table = NULL;
   }
 
+  ht->table_size_p    = 0;
   ht->table_size      = 0;
   ht->table_itemcount = 0;
   ht->table_mask      = 0;
 }
 
-static inline int hashtable_resize(struct hashtable *ht, int new_size)
+static inline int hashtable_resize(struct hashtable *ht, 
+                                   ht_size_p_t new_size_p)
 {
   struct hashtable temp;
   struct hashtableitem *i, *j;
-  int need_update, slot;
-  uint32_t old_size;
+  ht_size_t slot, old_size;
 
-  if (new_size == 0)
-  {
-    /* then (ht->table_size << 1) must have overflown */
-    return HASHTABLE_TOO_LARGE;
-  }
-
-  temp.table_size = new_size;
+  temp.table_size_p = new_size_p;
+  temp.table_size = 1 << temp.table_size_p;
   temp.table_mask = temp.table_size - 1;
 
   /* if realloc fails, it leaves the original memory area untouched */
@@ -270,18 +309,16 @@ static inline int hashtable_resize(struct hashtable *ht, int new_size)
   memset(temp.table + ht->table_size, 0, 
          (temp.table_size - ht->table_size) * sizeof(struct hashtableitem *));
 
-  /* if this isn't the creation of the table, ie. it had a size before */
-  need_update = (ht->table_size != 0);
-
   /* now update ht */
-  old_size = ht->table_size;
-  ht->table      = temp.table;
-  ht->table_size = temp.table_size;
-  ht->table_mask = temp.table_mask;
+  old_size         = ht->table_size;
+  ht->table        = temp.table;
+  ht->table_size_p = temp.table_size_p;
+  ht->table_size   = temp.table_size;
+  ht->table_mask   = temp.table_mask;
 
   if (old_size != 0)
   {
-    for (slot = 0; slot < ht->table_size; slot++)
+    for (slot = 0; slot < old_size; slot++)
     {
       j = (ht->table)[slot];
 
@@ -295,10 +332,20 @@ static inline int hashtable_resize(struct hashtable *ht, int new_size)
           if (j->prev == NULL)
           {
             (ht->table)[slot] = j->next;
+
+            if (j->next != NULL)
+            {
+              j->next->prev = NULL;
+            }
           }
           else
           {
             j->prev->next = j->next;
+
+            if (j->next != NULL)
+            {
+              j->next->prev = j->prev;
+            }
           }
 
           hashtable_insert(ht, j);
@@ -317,9 +364,9 @@ static inline int hashtable_resize(struct hashtable *ht, int new_size)
 }
 
 static inline void hashtable_insert(struct hashtable *ht,
-                                   struct hashtableitem *item)
+                                    struct hashtableitem *item)
 {
-  uint32_t slot;
+  ht_size_t slot;
   struct hashtableitem *j;
 
   /* This item will become the last in the chain */
@@ -353,13 +400,13 @@ const char *hashtable_strerror(int hterror)
 {
   switch (hterror)
   {
-    case HASHTABLE_SUCCESS:        return "Success";
-    case HASHTABLE_OUT_OF_MEMORY:  return "Out of memory";
-    case HASHTABLE_KEY_NOT_FOUND:  return "Key not found";
-    case HASHTABLE_INVALID_ARG:    return "Invalid argument";
-    case HASHTABLE_DUPLICATE:      return "Duplicate key";
-    case HASHTABLE_TOO_LARGE:      return "Size limit reached";
-    default:                       return "Success";
+    case HASHTABLE_SUCCESS:                    return "Success";
+    case HASHTABLE_SUCCESS_YET_OUT_OF_MEMORY:  return "Success yet out of memory";
+    case HASHTABLE_OUT_OF_MEMORY:              return "Out of memory";
+    case HASHTABLE_KEY_NOT_FOUND:              return "Key not found";
+    case HASHTABLE_INVALID_ARG:                return "Invalid argument";
+    case HASHTABLE_DUPLICATE:                  return "Duplicate key";
+    default:                                   return "Success";
   }
 }
 

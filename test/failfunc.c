@@ -69,11 +69,11 @@ void fputc_f(char c, FILE *stream)
   }
 }
 
-void hashtable_new_custom_f(struct hashtable *ht, int size_exponent, 
-                            hash_function f)
+void hashtable_new_custom_f(struct hashtable *ht,
+                            const struct hashtablesettings *s)
 {
   int r;
-  r = hashtable_new_custom(ht, size_exponent, f);
+  r = hashtable_new_custom(ht, s);
 
   if (r != HASHTABLE_SUCCESS)
   {
@@ -82,10 +82,10 @@ void hashtable_new_custom_f(struct hashtable *ht, int size_exponent,
   }
 }
 
-void hashtable_new_f(struct hashtable *ht, int size_exponent)
+void hashtable_new_f(struct hashtable *ht)
 {
   int r;
-  r = hashtable_new(ht, size_exponent);
+  r = hashtable_new(ht);
 
   if (r != HASHTABLE_SUCCESS)
   {

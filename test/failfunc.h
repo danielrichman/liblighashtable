@@ -30,9 +30,9 @@ void fwrite_f(const void *ptr, size_t size, size_t nmemb, FILE *stream);
 void fputc_f(char c, FILE *stream);
 
 /* NB: hashtable_get_f does not bail and exit() if the key is not found. */
-void hashtable_new_custom_f(struct hashtable *ht, int size_exponent, 
-                            hash_function f);
-void hashtable_new_f(struct hashtable *ht, int size_exponent);
+void hashtable_new_custom_f(struct hashtable *ht,
+                            const struct hashtablesettings *s);
+void hashtable_new_f(struct hashtable *ht);
 void hashtable_get_item_f(struct hashtable *ht, char *key, size_t keylen,
                           struct hashtableitem **item);
 void hashtable_get_f(struct hashtable *ht, char *key, size_t keylen, 

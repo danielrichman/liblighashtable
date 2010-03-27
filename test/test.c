@@ -37,6 +37,7 @@
 #endif
 
 #include "failfunc.h"
+#include "lookup_hash.h"
 
 static inline void debug_printf(const char *format, ...);
 static inline void debug_ht(struct hashtable *ht);
@@ -54,8 +55,8 @@ static inline void debug_printf(const char *format, ...)
 static inline void debug_ht(struct hashtable *ht)
 {
 #ifdef VERBOSE
+  uint32_t i;
   struct hashtableitem *j;
-  int i;
 
   debug_printf("{\n");
   debug_printf("  table = %p\n", ht->table);
@@ -63,7 +64,7 @@ static inline void debug_ht(struct hashtable *ht)
 
   for (i = 0; i < ht->table_size; i++)
   {
-    debug_printf("    [%08x %10i] = %p\n", i, i, ht->table[i]);
+    debug_printf("    [0x%08x %10i] = %p\n", i, i, ht->table[i]);
 
     if (ht->table[i] != NULL)
     {
@@ -73,7 +74,7 @@ static inline void debug_ht(struct hashtable *ht)
       while (j != NULL)
       {
         debug_printf("      -- key = '%.*s', keylen = %zu, \n"
-                     "         key_hash = %08x, data = %p, \n"
+                     "         key_hash = 0x%08x, data = %p, \n"
                      "         next = %p, prev = %p \n",
                      j->keylen, j->key, j->keylen,
                      j->key_hash, j->data, 
@@ -86,16 +87,30 @@ static inline void debug_ht(struct hashtable *ht)
 
   debug_printf("  }\n");
 
-  debug_printf("  table_size = %i, table_itemcount = %i,\n"
-               "  table_mask = %08x\n",
-               ht->table_size, ht->table_itemcount, 
+  debug_printf("  table_size_p = %i, table_size = %i, \n"
+               "  table_itemcount = %i, table_mask = 0x%08x\n",
+               ht->table_size_p, ht->table_size, ht->table_itemcount, 
                ht->table_mask);
+
+  debug_printf("  table_settings = \n");
+  debug_printf("  {\n");
+
+  debug_printf("    size_initial = %i, size_maximum = %i, \n"
+               "    size_extend = %i, size_extend_trigger = %i, \n"
+               "    hashfunction = %p \n",
+               ht->table_settings.size_initial,
+               ht->table_settings.size_maximum,
+               ht->table_settings.size_extend,
+               ht->table_settings.size_extend_trigger,
+               ht->table_settings.hashfunction);
+
+  debug_printf("  }\n");
   debug_printf("}\n");
 #endif
 }
 
 char *testkeys[10] = 
- { "yei3cooRshu4ohKu", "aevaeiaevae1Fi", "Si12341evae7nohT2thai", 
+ { "yki3coJRshu4ohKu", "aevaeiaevae1Fi", "Si12341evae7nohT2thai", 
    "zae6ajklfsdoY6eQuie8uph", "FieVe1giaX7ahkor", "ahtecBa", "hayawe84", 
    "iet0ooGh uTee1aiz aeShou0H Aepie5ma fie0Nool", "beemoh8Ooh6AiD",
    "Moo" };
@@ -139,6 +154,7 @@ int main(int argc, char **argv)
   #endif
 
   struct hashtable ht;
+  struct hashtablesettings s;
   int i, k;
   struct hashtableitem *l;
   char d[10];
@@ -155,10 +171,18 @@ int main(int argc, char **argv)
   for (x = 0; x < BENCHMARK; x++) {
   #endif
 
+  s.size_initial = 0;
+  s.size_maximum = 3;
+  s.size_extend = 1;
+  s.size_extend_trigger = 0;
+  s.hashfunction = lookup_hash;
+
   debug_printf("Creating new hashtable size 2^3 = 8: ");
-  hashtable_new_f(&ht, 3);
+  hashtable_new_custom_f(&ht, &s);
   debug_printf("Done\n");
   debug_ht(&ht);
+
+  s.size_initial = 255;
 
   debug_printf("Adding 7 items: ");
   #ifdef VERBOSE
@@ -170,9 +194,9 @@ int main(int argc, char **argv)
     #ifdef VERBOSE
       debug_printf("  [%10u] = '%s'\n", i, testkeys[i]);
     #endif
+    debug_ht(&ht);
   }
   debug_printf("Done\n");
-  debug_ht(&ht);
 
   debug_printf("Adding the 8th item: ");
   hashtable_set_f(&ht, testkeys[7], testkey_lens[7], &(d[7]));
