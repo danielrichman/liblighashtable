@@ -55,7 +55,7 @@ static inline void debug_printf(const char *format, ...)
 static inline void debug_ht(struct hashtable *ht)
 {
 #ifdef VERBOSE
-  uint32_t i;
+  ht_size_t i;
   struct hashtableitem *j;
 
   debug_printf("{\n");
