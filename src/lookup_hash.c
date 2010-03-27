@@ -2,7 +2,7 @@
    lookup3.c, by Bob Jenkins, May 2006, Public Domain.
    http://burtleburtle.net/bob/c/lookup3.c
 
-   Some sections have been cut down; see the url above for the original
+   Some sections have been cut down; see the url above for the original.
 */
 
 #include <stdio.h>
