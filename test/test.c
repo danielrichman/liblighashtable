@@ -28,7 +28,7 @@
 
   #if BENCHMARK == 1
     #undef BENCHMARK
-    #define BENCHMARK 10000000
+    #define BENCHMARK 0x2FFFFF
   #endif
 #endif
 

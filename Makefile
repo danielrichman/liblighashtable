@@ -51,6 +51,7 @@ test : $(TEST_BINARY)
 clean : clean-objects
 	rm -f $(TARGET_LIBRARY).so $(TARGET_LIBRARY).a $(TEST_BINARY) 
 	rm -f config.h configure
+	rm -f gmon.out
 
 clean-objects: 
 	rm -f $(src_objects) $(src_pic_objects) $(test_objects)

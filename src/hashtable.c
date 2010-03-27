@@ -74,9 +74,11 @@ int hashtable_new(struct hashtable *ht)
 
 int hashtable_verify_settings(const struct hashtablesettings *s)
 {
-  if (s->size_initial <= ht_size_lim_p || s->size_maximum <= ht_size_lim_p || 
-      s->size_extend <= ht_size_lim_p || 
-      s->size_extend_trigger <= ht_size_lim_p)
+  if (s->size_initial <= ht_size_lim_p && 
+      s->size_maximum <= ht_size_lim_p && 
+      s->size_extend <= ht_size_lim_p && 
+      s->size_extend_trigger <= ht_size_lim_p && 
+      s->size_extend != 0)
   {
     return HASHTABLE_SUCCESS;
   }

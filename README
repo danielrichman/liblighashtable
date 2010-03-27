@@ -25,11 +25,14 @@ see http://burtleburtle.net/bob/c/lookup3.c for the original.
   AUTHOR & PROJECT URL
 ===============================================================================
 
-liblighashtable was written by:
-Daniel Richman <main@danielrichman.co.uk>
+liblighashtable was written by: 
+  Daniel Richman <main@danielrichman.co.uk>
 
-and the source code project page currently is
-http://github.com/danielrichman/liblighashtable
+Project Homepage: 
+  http://www.danielrichman.co.uk/projects/liblighashtable
+
+GitHub/Source code project page
+  http://github.com/danielrichman/liblighashtable
 
 ===============================================================================
   USAGE / LIBRARY REFERENCE
@@ -37,41 +40,55 @@ http://github.com/danielrichman/liblighashtable
 
 Creating a hashtable
 
-  int hashtable_new(struct hashtable *ht, int size_exponent);
+  int hashtable_new(struct hashtable *ht);
 
-    Create a new hashtable, allocating memory for the table itself.
-    By default, the hash function used is Bob Jenkins' lookup3, however, if 
-    you want, you can specify your own using hashtable_new_custom:
+    Create a new hashtable, allocating memory for the table itself, using all
+    the default settings, which is what you probably want.
+
+  typedef uint32_t  ht_size_t;
+  typedef uint8_t   ht_size_p_t;
+  typedef ht_size_t ht_hash_t;
+
+  typedef ht_hash_t (*hash_function)(const void *key, size_t length);
+
+  extern const struct hashtablesettings hashtable_defaults;
+
+  struct hashtablesettings
+  {
+    ht_size_p_t size_initial;         /* default:  3 */
+    ht_size_p_t size_maximum;         /* default:  4 */
+    ht_size_p_t size_extend;          /* default:  1 */
+    ht_size_p_t size_extend_trigger;  /* default:  0 */
+    hash_function hashfunction;       /* default: Bob Jenkins' lookup3 */
+  };
+
+  int hashtable_new_custom(struct hashtable *ht, 
+                           const struct hashtablesettings *s);
+
+    Creates a new hashtable, validating the settings provided first.
 
     A hashtable in this library is always a size that is a power of 2.
-    size_exponent specifies the starting size of the table (its size will
-    be expanded by doubling if you add enough items to it; hashtable_set,
-    despite being able to create a linked list of items in one hashtable
-    'slot' to compensate for collisions, will expand the table once you 
-    have added the number of items that the table was originally intended
-    to contain to the table).
+    Anything of ht_size_p_t (size_power) specifies the size of a table
+    as being 2 to the power of ht_size_p_t. (Eg. size_initial = 3 would
+    mean that the table starts at size 8).
 
-    For example:
-      struct hashtable ht;
-      hashtable_new(&ht, 3);
+    If there any collisions in the hashes, a linked list will be created
+    in that 'slot'.
 
-      creates a new table of size 8, meaning it has 8 'slots' (an item's 
-      slot is chosen by masking (read bitwise AND/&) the 32 bit hash for  
-      each item and extracting the last 3 bits, for a table size of 8).
+    size_extend specifies by what power of 2 the table should be enlarged
+    when the number of items reaches 2 to the power of 
+    (table_size + size_extend_trigger).
 
-      After having inserted 8 items into the table, hashtable_set will 
-      decide to double the table size. Some of those 8 items may have hash
-      collisions, and there may be 2 items in one 'slot'. The doubling of
-      the hashtable size is intended to reduce collisions when the number
-      of items reaches such a level compared to the number of slots.
+    The default values mean that a table will be created with 8 slots,
+    therefore the last three bits of the hash will be used to decide an item's
+    location in the table. Once 8 items have been entered, the table size will
+    be doubled.
 
-      The resizing of the table will move any collisions, where appropriate,
-      into their new home (if the new table mask now taking the last 4 bits
-      puts them in a different slot).
+    None of these values may be greater than 31.
 
-  int hashtable_new_custom(struct hashtable *ht, int size_exponent, 
-                           hash_function f);
-  typedef uint32_t (*hash_function)(const void *key, size_t length);
+    If the table becomes so large that size_maximum is reached or it is not
+    possible to allocate more memory for the table, then items may still be 
+    inserted, or "set", adding to the linked list in each slot.
 
 Setting keys in the hashtable.
 
@@ -84,7 +101,11 @@ Setting keys in the hashtable.
     with it.
 
     No two keys may be identical, see the return value HASHTABLE_DUPLICATE
-    below
+    below.
+
+    Furthermore, see the return values section below for information on the
+    other two return codes of this function, HASHTABLE_OUT_OF_MEMORY and
+    HASHTABLE_SUCCESS_YET_OUT_OF_MEMORY.
 
 Retrieving keys form the hashtable
 
@@ -139,12 +160,12 @@ Return values
 
   All functions, except for hashtable_delete, return one of these values:
 
-    #define HASHTABLE_SUCCESS         0
-    #define HASHTABLE_OUT_OF_MEMORY   1
-    #define HASHTABLE_KEY_NOT_FOUND   2
-    #define HASHTABLE_INVALID_ARG     3
-    #define HASHTABLE_DUPLICATE       4
-    #define HASHTABLE_TOO_LARGE       5
+    #define HASHTABLE_SUCCESS                    0
+    #define HASHTABLE_SUCCESS_YET_OUT_OF_MEMORY  1
+    #define HASHTABLE_OUT_OF_MEMORY              2
+    #define HASHTABLE_KEY_NOT_FOUND              3
+    #define HASHTABLE_INVALID_ARG                4
+    #define HASHTABLE_DUPLICATE                  5
 
   The following function can be used to look up a string associated with this
   number, in a similar way to strerror for stdio.h
@@ -154,20 +175,20 @@ Return values
   NB:
 
   If a hashtable_new returns HASHTABLE_OUT_OF_MEMORY, no memory will have been
-  allocated since a call to malloc failed. However, if while setting a new key
-  in the table it is decided that the table should be increased in size, and 
-  this fails, or allocating memory for the item itself fails, then 
-  HASHTABLE_OUT_OF_MEMORY will be returned BUT THE TABLE IS STILL ALLOCATED AND
-  READABLE! If you wish to bail out, you will need to call hashtable_delete, 
-  which will free everything associated with the table.
+  allocated since a call to malloc failed. 
 
-  HASHTABLE_TOO_LARGE will most likely never happen to you, unless you have a
-  truly colossal amount of ram, and a truly colossal amount of stuff you want
-  to store in a hashtable. It occurs when the number of items to be stored in
-  the table reaches 2^32.
+  If a hashtable_set call returns HASHTABLE_OUT_OF_MEMORY, it means that it 
+  was unable to allocate memory for the item struct itself. The item will not
+  have been set but nor will the table have been destroyed, and you can 
+  continue to hashtable_get. If you wish to bail out and exit, you must 
+  hashtable_delete.
 
-  HASHTABLE_INVALID_ARG refers to the size_exponent argument of 
-  hashtable_new
+  If the hash table's settings suggest that the table should be enlarged when
+  hashtable_set is called, and it cannot be enlarged due to a failed call to
+  malloc / out of memory, yet it still succeeded in inserting the item, 
+  this function will return HASHTABLE_SUCCESS_YET_OUT_OF_MEMORY.
+
+  HASHTABLE_INVALID_ARG refers to any ht_size_p_t.
 
 ===============================================================================
   INSTALLATION
