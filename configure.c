@@ -19,11 +19,23 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-void put_string(FILE *f, const char *s)
+static inline void put_string(FILE *f, const char *s)
 {
   if (fputs(s, f) == EOF)
   {
     perror("Error writing to file");
+    exit(EXIT_FAILURE);
+  }
+}
+
+#define check_size(type, size) check_size_(sizeof(type), (size), #type)
+static inline void check_size_(size_t real_size, size_t intended_size, 
+                               const char *name)
+{
+  if (real_size != intended_size)
+  {
+    fprintf(stderr, "sizeof(%s) is %zi; expected %zi\n", 
+            name, real_size, intended_size);
     exit(EXIT_FAILURE);
   }
 }
@@ -34,17 +46,10 @@ int main(int argc, char **argv)
   uint16_t two_byte_int;
   uint8_t  *byte_array;
 
-  if (sizeof(uint8_t) != 1)
-  {
-    fprintf(stderr, "sizeof(uint8_t) != 1\n");
-    exit(EXIT_FAILURE);
-  }
-
-  if (sizeof(uint16_t) != 2)
-  {
-    fprintf(stderr, "sizeof(uint16_t) != 2\n");
-    exit(EXIT_FAILURE);
-  }
+  check_size(uint8_t,  1);
+  check_size(uint16_t, 2);
+  check_size(uint32_t, 4);
+  check_size(uint64_t, 8);
 
   config = fopen("config.h", "w");
   if (config == NULL)

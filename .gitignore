@@ -1,0 +1,12 @@
+config.h
+configure
+gmon.out
+ht_test
+liblighashtable.a
+liblighashtable.so
+src/hashtable.o
+src/hashtable.pic.o
+src/lookup_hash.o
+src/lookup_hash.pic.o
+test/failfunc.o
+test/test.o

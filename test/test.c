@@ -41,6 +41,25 @@
 
 static inline void debug_printf(const char *format, ...);
 static inline void debug_ht(struct hashtable *ht);
+static inline void report_gettest(char *a, char *i);
+static inline void check_size_(size_t real_size, size_t intended_size,
+                               const char *name);
+static inline void sanity_check();
+
+#define print_size(type) \
+  debug_printf("sizeof(" #type ") is %zi\n", sizeof(type))
+#define check_size(type, size) check_size_(sizeof(type), (size), #type)
+
+char *testkeys[10] =
+ { "yki3coJRshu4ohKu", "aevaeiaevae1Fi", "Si12341evae7nohT2thai",
+   "zae6ajklfsdoY6eQuie8uph", "FieVe1giaX7ahkor", "ahtecBa", "hayawe84",
+   "iet0ooGh uTee1aiz aeShou0H Aepie5ma fie0Nool", "beemoh8Ooh6AiD",
+   "Moo" };
+#define testkey_count  (sizeof(testkeys) / sizeof(char *))
+
+/* hopefully so that testkey[4] and getkey arn't the same memory location,
+ *  * so it's a proper test. This string is testkey[4] + testkey[8] */
+char *getkey = "FieVe1giaX7ahkorbeemoh8Ooh6AiD";
 
 static inline void debug_printf(const char *format, ...)
 {
@@ -109,17 +128,6 @@ static inline void debug_ht(struct hashtable *ht)
 #endif
 }
 
-char *testkeys[10] = 
- { "yki3coJRshu4ohKu", "aevaeiaevae1Fi", "Si12341evae7nohT2thai", 
-   "zae6ajklfsdoY6eQuie8uph", "FieVe1giaX7ahkor", "ahtecBa", "hayawe84", 
-   "iet0ooGh uTee1aiz aeShou0H Aepie5ma fie0Nool", "beemoh8Ooh6AiD",
-   "Moo" };
-#define testkey_count  (sizeof(testkeys) / sizeof(char *))
-
-/* hopefully so that testkey[4] and getkey arn't the same memory location,
- * so it's a proper test. This string is testkey[4] + testkey[8] */
-char *getkey = "FieVe1giaX7ahkorbeemoh8Ooh6AiD";
-
 static inline void report_gettest(char *a, char *i)
 {
   if (a == i)
@@ -143,6 +151,52 @@ static inline void report_gettest(char *a, char *i)
   }
 }
 
+static inline void check_size_(size_t real_size, size_t intended_size,
+                               const char *name)
+{
+  if (real_size != intended_size)
+  {
+    debug_printf("sizeof(%s) is %zi; expected %zi\n",
+                 name, real_size, intended_size);
+    exit(EXIT_FAILURE);
+  }
+  else
+  {
+    debug_printf("sizeof(%s) = %zi; OK\n", name, real_size);
+  }
+}
+
+static inline void sanity_check()
+{
+  ht_hash_t r, x;
+
+  check_size(ht_size_t,   4);
+  check_size(ht_size_p_t, 1);
+  check_size(ht_hash_t,   4);
+
+  print_size(void *);
+  print_size(size_t);
+
+  print_size(struct hashtable);
+  print_size(struct hashtableitem);
+  print_size(struct hashtablesettings);
+
+  print_size(int);
+  print_size(long int);
+  print_size(long long int);
+  print_size(uint32_t);
+  print_size(uint64_t);
+
+  r = lookup_hash(getkey, strlen(getkey));
+  x = 0xedf943da;
+
+  if (r != x)
+  {
+    debug_printf("lookup_hash test returned %04x; expected %04x\n", r, x);
+    exit(EXIT_FAILURE);
+  }
+}
+
 int main(int argc, char **argv)
 {
   #ifdef BENCHMARK
@@ -159,6 +213,10 @@ int main(int argc, char **argv)
   struct hashtableitem *l;
   char d[10];
   int testkey_lens[testkey_count];
+
+  debug_printf("Sanity check: \n");
+  sanity_check();
+  debug_printf("Done\n");
 
   debug_printf("Have %i testkeys\n", testkey_count);
 
@@ -257,12 +315,14 @@ int main(int argc, char **argv)
   if (ht.table_itemcount != 7)
   {
     debug_printf("Error: table_itemcount incorrect\n");
+    exit(EXIT_FAILURE);
   }
 
   if (hashtable_get(&ht, testkeys[0], testkey_lens[0], NULL) != 
                                                HASHTABLE_KEY_NOT_FOUND)
   {
     debug_printf("Error: 1st item still exists\n");
+    exit(EXIT_FAILURE);
   }
 
   debug_printf("Ok\n");
